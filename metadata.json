@@ -1,0 +1,5 @@
+{
+  "name": "新生儿复苏-LZRYEK 决策助手",
+  "description": "基于2025年AHA/AAP新生儿复苏指南的临床决策辅助系统，集成了交互式复苏流程、生理目标监测、详尽理论要点及体重联动式药物剂量计算。",
+  "requestFramePermissions": []
+}
