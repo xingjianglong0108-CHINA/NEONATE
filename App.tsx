@@ -184,6 +184,16 @@ const GuidanceView: React.FC<{
 
   const timerColor = seconds >= 60 ? 'text-red-500' : seconds >= 30 ? 'text-orange-500' : 'text-blue-600';
 
+  // 获取当前秒数对应的目标 SpO2
+  const getCurrentSpO2Target = (s: number) => {
+    if (s <= 60) return "60%-65%";
+    if (s <= 120) return "65%-70%";
+    if (s <= 180) return "70%-75%";
+    if (s <= 240) return "75%-80%";
+    if (s <= 300) return "80%-85%";
+    return "85%-95%";
+  };
+
   // 渲染节点内容
   const renderNode = () => {
     switch (node) {
@@ -246,7 +256,7 @@ const GuidanceView: React.FC<{
         title: "辅助呼吸阶段",
         desc: "针对有自主呼吸但仍有困难的新生儿。",
         details: [
-          "清理气道，监测脉搏血氧饱和度 (SpO2)",
+          "清理气道，监测右手导管前血氧 (SpO2)",
           "持续气道正压通气 (CPAP)：起始压力 5-8 cmH2O",
           "考虑给氧：目标值根据生后分钟数调整",
           "持续观察呼吸努力度和心率稳定性"
@@ -263,7 +273,7 @@ const GuidanceView: React.FC<{
           "频率：40-60 次/分（“吸-二-三-吸-二-三”）",
           "起始 PIP：20-25 cmH2O（早产儿可稍低）",
           "PEEP：建议 5 cmH2O",
-          "连接脉氧仪，右手上肢测得导管前 SpO2",
+          "连接脉氧仪，右手(导管前)测得 SpO2",
           "第一个15秒：观察心率是否上升和胸廓起伏"
         ],
         actions: [
@@ -292,23 +302,23 @@ const GuidanceView: React.FC<{
           "R (Reposition): 重新摆正气道（嗅探位）",
           "S (Suction): 吸引口鼻分泌物",
           "O (Open): 张开新生儿口腔",
-          "P (Pressure): 增加通气压力（每次3-5cmH2O，最高40）",
-          "A (Alternative): 建立替代气道（气管插管或喉罩）"
+          "P (Pressure): 增加通气压力（最高40 cmH2O）",
+          "A (Alternative): 建立人工气道。**注意：若矫正后胸廓仍无起伏，必须考虑立即气管插管。**"
         ],
         actions: [
-          { label: "HR < 60 (开始按压)", next: 'COMPRESS', primary: true },
+          { label: "HR < 60 (准备按压)", next: 'COMPRESS', primary: true },
           { label: "HR >= 60 (继续 PPV)", next: 'PPV', primary: false }
         ]
       };
       case 'COMPRESS': return {
         title: "胸外按压",
-        desc: "循环支持，需与通气协调进行。",
+        desc: "循环支持。**注意：开始按压前应已完成气管插管。**",
         details: [
           "指征：充分 PPV 30秒后 HR < 60bpm",
-          "位置：胸骨下 1/3，避开剑突",
+          "插管：强烈建议在开始按压前完成气管插管或喉罩置入",
           "手法：双拇指环抱法，深度达胸廓前后径 1/3",
           "频率：90次按压 + 30次通气（3:1 协调）",
-          "此时必须使用 100% 氧气，并确保已建立人工气道"
+          "氧气：此时必须将氧浓度上调至 100%"
         ],
         actions: [
           { label: "60秒后评估 HR < 60?", next: 'MEDS', primary: true },
@@ -321,9 +331,9 @@ const GuidanceView: React.FC<{
         details: [
           "肾上腺素：首选静脉或骨内（IV/IO）给药",
           "剂量：0.1-0.3 mL/kg (1:10000 稀释液)",
-          "气管内剂量（临时用）：0.5-1.0 mL/kg",
+          "插管给药：若静脉未建立，可通过气管导管给药 (0.5-1.0 mL/kg)",
           "每 3-5 分钟可重复一次",
-          "考虑：血容量不足（生理盐水 10-20mL/kg）或气胸"
+          "考虑：血容量不足或气胸"
         ],
         actions: [
           { label: "继续循环反馈", next: 'COMPRESS', primary: true },
@@ -334,11 +344,11 @@ const GuidanceView: React.FC<{
         title: "复苏后管理",
         desc: "复苏后的生命支持与观察。",
         details: [
-          "监测：HR, RR, SpO2, 血压，记录入量/出量",
+          "监测：HR, RR, 右手导管前SpO2, 血压",
+          "插管管理：若已插管，需确认导管位置，监测呼气末CO2",
           "维持：正常体温（36.5-37.5°C）和血糖平衡",
           "评估：神经学评分，是否存在 HIE 风险（考虑亚低温）",
-          "沟通：向家属详细告知复苏经过与后期计划",
-          "复盘：团队进行复苏后简短总结与分析"
+          "复盘：团队总结"
         ],
         actions: [
           { label: "完成/重置流程", next: 'PREP', primary: true, onAction: resetAll }
@@ -413,7 +423,7 @@ const GuidanceView: React.FC<{
         </div>
       </div>
 
-      {/* 详细细节版块 (新增加) */}
+      {/* 详细细节版块 */}
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
         <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center gap-2">
           <ListChecks size={18} className="text-gray-500" />
@@ -438,14 +448,20 @@ const GuidanceView: React.FC<{
         </div>
       </div>
 
-      {/* SpO2 目标提醒 */}
+      {/* SpO2 目标提醒 - 强化说明 */}
       {seconds > 0 && seconds <= 600 && (
-        <div className="bg-blue-50 rounded-2xl p-4 flex items-center justify-between border border-blue-100 animate-in fade-in slide-in-from-right duration-500">
-          <div className="flex items-center gap-2">
-            <Activity size={16} className="text-blue-600" />
-            <span className="text-xs font-bold text-blue-800">当前时间 SpO2 目标:</span>
+        <div className="bg-blue-50 rounded-2xl p-4 flex flex-col gap-2 border border-blue-100 animate-in fade-in slide-in-from-right duration-500">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity size={16} className="text-blue-600" />
+              <span className="text-xs font-bold text-blue-800">生后导管前(右手) SpO2 目标:</span>
+            </div>
+            <span className="text-sm font-black text-blue-700">{getCurrentSpO2Target(seconds)}</span>
           </div>
-          <span className="text-sm font-black text-blue-700">{seconds < 120 ? '60-65%' : seconds < 180 ? '65-70%' : '80-85%'}</span>
+          <div className="flex items-start gap-1">
+            <Info size={10} className="text-blue-400 mt-0.5" />
+            <p className="text-[9px] text-blue-600 italic">注：此目标仅随生后时间改变，与是否气管插管无关。</p>
+          </div>
         </div>
       )}
     </div>
@@ -455,7 +471,10 @@ const GuidanceView: React.FC<{
 const GoalsView: React.FC = () => (
   <div className="flex flex-col gap-4 animate-in fade-in duration-300">
     <div className="ios-card p-5">
-      <h3 className="text-sm font-bold text-gray-500 mb-4 flex items-center gap-2"><Activity size={16} className="text-blue-500" /> 生后动脉血氧饱和度目标</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-bold text-gray-500 flex items-center gap-2"><Activity size={16} className="text-blue-500" /> 生后导管前 (Pre-ductal) SpO2 目标</h3>
+        <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded font-bold">右手腕监测</span>
+      </div>
       <div className="space-y-3">
         {SPO2_TARGETS.map((t, idx) => (
           <div key={idx} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
@@ -464,13 +483,18 @@ const GoalsView: React.FC = () => (
           </div>
         ))}
       </div>
+      <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-100">
+        <p className="text-[11px] text-amber-700 leading-relaxed font-medium">
+          <strong>重要：</strong>SpO2 目标曲线严格取决于出生后的时间（分钟）。无论采取何种呼吸支持手段（面罩 PPV、CPAP 或气管插管），目标值均保持一致。
+        </p>
+      </div>
     </div>
     <div className="ios-card p-5">
       <h3 className="text-sm font-bold text-gray-500 mb-4 flex items-center gap-2"><Stethoscope size={16} className="text-green-500" /> 核心生理目标</h3>
       <div className="grid grid-cols-2 gap-3">
         <div className="p-4 bg-green-50 rounded-xl"><p className="text-[10px] text-green-600 font-bold uppercase mb-1">体温目标</p><p className="text-xl font-bold text-green-900">36.5-37.5°C</p></div>
         <div className="p-4 bg-orange-50 rounded-xl"><p className="text-[10px] text-orange-600 font-bold uppercase mb-1">按压频率</p><p className="text-xl font-bold text-orange-900">90 次/分</p></div>
-        <div className="p-4 bg-purple-50 rounded-xl"><p className="text-[10px] text-purple-600 font-bold uppercase mb-1">通气频率</p><p className="text-xl font-bold text-purple-900">30-60 次/分</p></div>
+        <div className="p-4 bg-purple-50 rounded-xl"><p className="text-[10px] text-purple-600 font-bold uppercase mb-1">通气频率</p><p className="text-xl font-bold text-purple-900">40-60 次/分</p></div>
         <div className="p-4 bg-blue-50 rounded-xl"><p className="text-[10px] text-blue-600 font-bold uppercase mb-1">按压比例</p><p className="text-xl font-bold text-blue-900">3:1</p></div>
       </div>
     </div>
