@@ -18,10 +18,12 @@ import {
   ArrowRightLeft,
   Heart,
   ListChecks,
-  Info
+  Info,
+  Droplets,
+  Zap
 } from 'lucide-react';
 import { AppSection, CalculationResult } from './types';
-import { SPO2_TARGETS, MAJOR_CONCEPTS, CHECKLIST_ITEMS } from './constants';
+import { SPO2_TARGETS, MAJOR_CONCEPTS, CHECKLIST_ITEMS, STABLE_SPO2_TARGET } from './constants';
 
 // 定义流程节点 ID
 type NodeId = 
@@ -125,6 +127,7 @@ const App: React.FC = () => {
             setIsTimerRunning={setIsTimerRunning}
             formatTime={formatTime}
             resetAll={resetAll}
+            results={results}
           />
         ) : activeSection === AppSection.GOALS ? (
           <GoalsView />
@@ -160,8 +163,9 @@ const GuidanceView: React.FC<{
   isTimerRunning: boolean, 
   setIsTimerRunning: (r: boolean) => void,
   formatTime: (s: number) => string,
-  resetAll: () => void
-}> = ({ node, setNode, seconds, isTimerRunning, setIsTimerRunning, formatTime, resetAll }) => {
+  resetAll: () => void,
+  results: CalculationResult
+}> = ({ node, setNode, seconds, isTimerRunning, setIsTimerRunning, formatTime, resetAll, results }) => {
   const [nodeSeconds, setNodeSeconds] = useState(0);
   const [showReminder, setShowReminder] = useState(false);
 
@@ -186,6 +190,7 @@ const GuidanceView: React.FC<{
 
   // 获取当前秒数对应的目标 SpO2
   const getCurrentSpO2Target = (s: number) => {
+    if (node === 'POST_CARE') return STABLE_SPO2_TARGET; // 稳定期目标
     if (s <= 60) return "60%-65%";
     if (s <= 120) return "65%-70%";
     if (s <= 180) return "70%-75%";
@@ -217,11 +222,12 @@ const GuidanceView: React.FC<{
           "足月吗？（询问孕周）",
           "肌张力好吗？（观察肢体活动）",
           "有呼吸或哭声吗？（听觉与视觉评估）",
-          "若三者皆是，转入母亲怀中进行皮肤接触护理"
+          "注意：若以上三项均为“是”，但存在呼吸费力或持续青紫，不可转入常规护理。"
         ],
+        warning: "注意：若新生儿有明显呼吸窘迫但心率大于100，仍需谨慎评估是否需要进入复苏路径（选择“否”进行初始干预或 CPAP）。",
         actions: [
           { label: "是 (转入常规护理)", next: 'POST_CARE', primary: false },
-          { label: "否 (进入初始步骤)", next: 'INITIAL', primary: true }
+          { label: "否 (进入初始步骤/干预)", next: 'INITIAL', primary: true }
         ]
       };
       case 'INITIAL': return {
@@ -240,16 +246,17 @@ const GuidanceView: React.FC<{
       };
       case 'POST_INIT': return {
         title: "再次评估",
-        desc: "决定是否需要开始正压通气（PPV）。",
+        desc: "决定是否需要开始正压通气（PPV）或辅助给氧。",
         details: [
           "是否存在呼吸暂停或喘息？",
           "心率（HR）是否 < 100bpm？",
-          "注意：心率评估首选听诊或心电图，触摸脐带搏动不可靠",
-          "若存在以上任一情况，应立即开始 PPV"
+          "是否存在持续青紫或呼吸窘迫？",
+          "注意：心率评估首选听诊，SpO2 监测需右手导管前测量。"
         ],
+        warning: "注意：若 HR > 100 但呼吸费力/持续青紫，不宜直接进入常规护理，应考虑 CPAP 或给氧评估。",
         actions: [
-          { label: "是 (开始 PPV)", next: 'PPV', primary: true },
-          { label: "否 (检查呼吸窘迫)", next: 'STABLE_LABOR', primary: false }
+          { label: "呼吸暂停/HR < 100", next: 'PPV', primary: true },
+          { label: "HR > 100 但有窘迫/青紫", next: 'STABLE_LABOR', primary: false }
         ]
       };
       case 'STABLE_LABOR': return {
@@ -333,7 +340,7 @@ const GuidanceView: React.FC<{
           "剂量：0.1-0.3 mL/kg (1:10000 稀释液)",
           "插管给药：若静脉未建立，可通过气管导管给药 (0.5-1.0 mL/kg)",
           "每 3-5 分钟可重复一次",
-          "考虑：血容量不足或气胸"
+          "关键提示：若心率无改善，评估血容量不足或气胸"
         ],
         actions: [
           { label: "继续循环反馈", next: 'COMPRESS', primary: true },
@@ -345,7 +352,8 @@ const GuidanceView: React.FC<{
         desc: "复苏后的生命支持与观察。",
         details: [
           "监测：HR, RR, 右手导管前SpO2, 血压",
-          "插管管理：若已插管，需确认导管位置，监测呼气末CO2",
+          "插管管理：若已插管，需确认导管位置，滴定氧浓度",
+          "稳定目标：SpO2 维持在 92%-96% 以避免高氧损伤",
           "维持：正常体温（36.5-37.5°C）和血糖平衡",
           "评估：神经学评分，是否存在 HIE 风险（考虑亚低温）",
           "复盘：团队总结"
@@ -401,6 +409,47 @@ const GuidanceView: React.FC<{
         })}
       </div>
 
+      {/* 临床决策警示卡片 - 仅在 BIRTH 和 POST_INIT 阶段显示 */}
+      {((content as any).warning) && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 animate-in slide-in-from-top duration-500">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertCircle size={18} className="text-blue-600" />
+            <h4 className="text-xs font-bold text-blue-800 uppercase tracking-tight">临床决策辅助提示</h4>
+          </div>
+          <p className="text-[11px] text-blue-700 leading-relaxed font-medium">
+            {(content as any).warning}
+          </p>
+        </div>
+      )}
+
+      {/* 血容量不足临床预警 - 仅在按压和药物阶段显示 */}
+      {(node === 'COMPRESS' || node === 'MEDS') && (
+        <div className="bg-red-50 border border-red-100 rounded-2xl p-4 animate-in slide-in-from-top duration-500">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertCircle size={18} className="text-red-500" />
+            <h4 className="text-sm font-bold text-red-800 uppercase tracking-tight">考虑血容量不足 (Hypovolemia)</h4>
+          </div>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="space-y-1">
+              <p className="text-[10px] text-red-700 font-bold">疑似指征：</p>
+              <ul className="text-[10px] text-red-600 list-disc list-inside">
+                <li>对复苏反应不佳</li>
+                <li>皮肤苍白/休克感</li>
+                <li>脉搏微弱/CRT延长</li>
+                <li>存在产前出血史</li>
+              </ul>
+            </div>
+            <div className="bg-white/60 p-2 rounded-xl border border-red-100 flex flex-col justify-center">
+              <p className="text-[10px] text-red-700 font-bold mb-1 flex items-center gap-1">
+                <Droplets size={10} /> 扩容剂量 (NS)：
+              </p>
+              <p className="text-lg font-black text-red-800">{results.volumeExpansion}</p>
+              <p className="text-[8px] text-red-500">10-20 mL/kg，IV/IO 缓慢推注</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 主决策卡片 */}
       <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 p-4 opacity-5"><Activity size={80}/></div>
@@ -448,19 +497,23 @@ const GuidanceView: React.FC<{
         </div>
       </div>
 
-      {/* SpO2 目标提醒 - 强化说明 */}
-      {seconds > 0 && seconds <= 600 && (
-        <div className="bg-blue-50 rounded-2xl p-4 flex flex-col gap-2 border border-blue-100 animate-in fade-in slide-in-from-right duration-500">
+      {/* SpO2 目标提醒 */}
+      {seconds > 0 && seconds <= 1200 && (
+        <div className={`rounded-2xl p-4 flex flex-col gap-2 border animate-in fade-in slide-in-from-right duration-500 ${node === 'POST_CARE' ? 'bg-green-50 border-green-100' : 'bg-blue-50 border-blue-100'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Activity size={16} className="text-blue-600" />
-              <span className="text-xs font-bold text-blue-800">生后导管前(右手) SpO2 目标:</span>
+              {node === 'POST_CARE' ? <CheckCircle2 size={16} className="text-green-600" /> : <Activity size={16} className="text-blue-600" />}
+              <span className={`text-xs font-bold ${node === 'POST_CARE' ? 'text-green-800' : 'text-blue-800'}`}>
+                {node === 'POST_CARE' ? '插管/稳定后 SpO2 目标:' : '生后导管前(右手) SpO2 目标:'}
+              </span>
             </div>
-            <span className="text-sm font-black text-blue-700">{getCurrentSpO2Target(seconds)}</span>
+            <span className={`text-sm font-black ${node === 'POST_CARE' ? 'text-green-700' : 'text-blue-700'}`}>{getCurrentSpO2Target(seconds)}</span>
           </div>
           <div className="flex items-start gap-1">
-            <Info size={10} className="text-blue-400 mt-0.5" />
-            <p className="text-[9px] text-blue-600 italic">注：此目标仅随生后时间改变，与是否气管插管无关。</p>
+            <Info size={10} className={`${node === 'POST_CARE' ? 'text-green-400' : 'text-blue-400'} mt-0.5`} />
+            <p className={`text-[9px] font-medium ${node === 'POST_CARE' ? 'text-green-600' : 'text-blue-600'} italic`}>
+              {node === 'POST_CARE' ? '滴定氧浓度维持此范围以避免高氧损伤。' : '注：此目标仅随生后时间改变，气管插管期间亦适用。'}
+            </p>
           </div>
         </div>
       )}
@@ -470,49 +523,129 @@ const GuidanceView: React.FC<{
 
 const GoalsView: React.FC = () => (
   <div className="flex flex-col gap-4 animate-in fade-in duration-300">
+    {/* 复苏转折期动态目标 */}
     <div className="ios-card p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-gray-500 flex items-center gap-2"><Activity size={16} className="text-blue-500" /> 生后导管前 (Pre-ductal) SpO2 目标</h3>
-        <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded font-bold">右手腕监测</span>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-bold text-gray-500 flex items-center gap-2"><Activity size={16} className="text-blue-500" /> 生后 1-10 分钟动态目标 (NRP 曲线)</h3>
+        <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded font-bold">导管前监测</span>
       </div>
-      <div className="space-y-3">
+      
+      {/* 整合的总结说明 */}
+      <div className="mb-4 p-3 bg-blue-50 rounded-xl border border-blue-100 flex items-start gap-2">
+        <Info size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
+        <p className="text-[11px] text-blue-700 leading-relaxed font-medium">
+          <strong>指南核心：</strong>SpO2 曲线仅基于<strong>生后时间</strong>，不因是否插管而改变。复苏稳定后（通常生后 >10min）应转为<strong>维持稳定范围 ({STABLE_SPO2_TARGET})</strong>，严防高氧损伤。
+        </p>
+      </div>
+
+      <div className="space-y-2">
         {SPO2_TARGETS.map((t, idx) => (
-          <div key={idx} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-            <span className="text-gray-700 font-medium">{t.time}</span>
-            <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full font-bold text-sm">{t.target}</span>
+          <div key={idx} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+            <span className="text-gray-700 text-xs font-medium">{t.time}</span>
+            <span className="bg-blue-50 text-blue-700 px-3 py-0.5 rounded-full font-bold text-xs">{t.target}</span>
           </div>
         ))}
       </div>
-      <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-100">
-        <p className="text-[11px] text-amber-700 leading-relaxed font-medium">
-          <strong>重要：</strong>SpO2 目标曲线严格取决于出生后的时间（分钟）。无论采取何种呼吸支持手段（面罩 PPV、CPAP 或气管插管），目标值均保持一致。
+    </div>
+
+    {/* 插管/稳定期固定目标 */}
+    <div className="ios-card p-5 border-l-4 border-green-500">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2"><Zap size={16} className="text-green-600" /> 气管插管后/复苏稳定期目标</h3>
+        <span className="text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded font-bold">稳定期</span>
+      </div>
+      <div className="flex items-center justify-between p-4 bg-green-50 rounded-2xl border border-green-100">
+        <div>
+          <p className="text-[10px] text-green-600 font-bold uppercase mb-1">推荐维持范围</p>
+          <p className="text-3xl font-black text-green-900">{STABLE_SPO2_TARGET}</p>
+        </div>
+        <CheckCircle2 size={32} className="text-green-500 opacity-50" />
+      </div>
+      <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+        <p className="text-[10px] text-blue-700 leading-relaxed font-medium">
+          <strong>临床提示：</strong>在自主循环恢复 (ROSC) 后，应尽快根据 SpO2 滴定给氧。将 SpO2 维持在此范围可有效降低氧化应激和肺损伤风险。
         </p>
       </div>
     </div>
+
     <div className="ios-card p-5">
-      <h3 className="text-sm font-bold text-gray-500 mb-4 flex items-center gap-2"><Stethoscope size={16} className="text-green-500" /> 核心生理目标</h3>
+      <h3 className="text-sm font-bold text-gray-500 mb-4 flex items-center gap-2"><Stethoscope size={16} className="text-blue-500" /> 其他核心生理目标</h3>
       <div className="grid grid-cols-2 gap-3">
-        <div className="p-4 bg-green-50 rounded-xl"><p className="text-[10px] text-green-600 font-bold uppercase mb-1">体温目标</p><p className="text-xl font-bold text-green-900">36.5-37.5°C</p></div>
-        <div className="p-4 bg-orange-50 rounded-xl"><p className="text-[10px] text-orange-600 font-bold uppercase mb-1">按压频率</p><p className="text-xl font-bold text-orange-900">90 次/分</p></div>
-        <div className="p-4 bg-purple-50 rounded-xl"><p className="text-[10px] text-purple-600 font-bold uppercase mb-1">通气频率</p><p className="text-xl font-bold text-purple-900">40-60 次/分</p></div>
-        <div className="p-4 bg-blue-50 rounded-xl"><p className="text-[10px] text-blue-600 font-bold uppercase mb-1">按压比例</p><p className="text-xl font-bold text-blue-900">3:1</p></div>
+        <div className="p-4 bg-gray-50 rounded-xl"><p className="text-[10px] text-gray-500 font-bold uppercase mb-1">体温目标</p><p className="text-lg font-bold text-gray-900">36.5-37.5°C</p></div>
+        <div className="p-4 bg-gray-50 rounded-xl"><p className="text-[10px] text-gray-500 font-bold uppercase mb-1">按压频率</p><p className="text-lg font-bold text-gray-900">90 次/分</p></div>
+        <div className="p-4 bg-gray-50 rounded-xl"><p className="text-[10px] text-gray-500 font-bold uppercase mb-1">通气频率</p><p className="text-lg font-bold text-gray-900">40-60 次/分</p></div>
+        <div className="p-4 bg-gray-50 rounded-xl"><p className="text-[10px] text-gray-500 font-bold uppercase mb-1">按压比例</p><p className="text-lg font-bold text-gray-900">3:1</p></div>
       </div>
     </div>
   </div>
 );
 
+/**
+ * 格式化列表项文本，支持加粗标题
+ */
+const FormattedChecklistItem: React.FC<{ text: string }> = ({ text }) => {
+  const parts = text.split(/(\【.*?\】)/g);
+  return (
+    <span className="text-sm text-gray-700">
+      {parts.map((part, i) => {
+        if (part.startsWith('【') && part.endsWith('】')) {
+          return <strong key={i} className="text-gray-900 font-bold">{part}</strong>;
+        }
+        return part;
+      })}
+    </span>
+  );
+};
+
 const ChecklistView: React.FC = () => (
   <div className="flex flex-col gap-4 animate-in fade-in duration-300">
     <div className="ios-card overflow-hidden">
-      <div className="bg-blue-50 p-4 border-b border-blue-100"><h3 className="text-blue-800 font-bold flex items-center gap-2"><Check size={18} /> 复苏前准备</h3></div>
-      <div className="p-2">{CHECKLIST_ITEMS.pre.map((item, idx) => (<div key={idx} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg"><input type="checkbox" className="mt-1 w-5 h-5" /><span className="text-sm text-gray-700">{item}</span></div>))}</div>
+      <div className="bg-blue-50 p-4 border-b border-blue-100 flex items-center justify-between">
+        <h3 className="text-blue-800 font-bold flex items-center gap-2"><Check size={18} /> 复苏前准备</h3>
+        <span className="text-[10px] text-blue-500 font-medium">产房/手术室</span>
+      </div>
+      <div className="p-2">
+        {CHECKLIST_ITEMS.pre.map((item, idx) => (
+          <div key={idx} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors border-b border-gray-50 last:border-0">
+            <input type="checkbox" className="mt-1 w-5 h-5 accent-blue-600 rounded-md" />
+            <FormattedChecklistItem text={item} />
+          </div>
+        ))}
+      </div>
     </div>
     <div className="ios-card overflow-hidden">
-      <div className="bg-purple-50 p-4 border-b border-purple-100"><h3 className="text-purple-800 font-bold flex items-center gap-2"><Check size={18} /> 复苏后管理</h3></div>
-      <div className="p-2">{CHECKLIST_ITEMS.post.map((item, idx) => (<div key={idx} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg"><input type="checkbox" className="mt-1 w-5 h-5" /><span className="text-sm text-gray-700">{item}</span></div>))}</div>
+      <div className="bg-purple-50 p-4 border-b border-purple-100 flex items-center justify-between">
+        <h3 className="text-purple-800 font-bold flex items-center gap-2"><Check size={18} /> 复苏后管理</h3>
+        <span className="text-[10px] text-purple-500 font-medium">NICU/转运前</span>
+      </div>
+      <div className="p-2">
+        {CHECKLIST_ITEMS.post.map((item, idx) => (
+          <div key={idx} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors border-b border-gray-50 last:border-0">
+            <input type="checkbox" className="mt-1 w-5 h-5 accent-purple-600 rounded-md" />
+            <FormattedChecklistItem text={item} />
+          </div>
+        ))}
+      </div>
     </div>
   </div>
 );
+
+/**
+ * 简单的文本格式化组件，支持 **加粗** 和换行解析
+ */
+const FormattedText: React.FC<{ text: string }> = ({ text }) => {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return (
+    <div className="whitespace-pre-wrap leading-relaxed">
+      {parts.map((part, i) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={i} className="text-blue-900 font-bold">{part.slice(2, -2)}</strong>;
+        }
+        return part;
+      })}
+    </div>
+  );
+};
 
 const TheoryView: React.FC = () => {
   const [selected, setSelected] = useState<string | null>(null);
@@ -520,12 +653,19 @@ const TheoryView: React.FC = () => {
     <div className="flex flex-col gap-3 animate-in fade-in duration-300">
       <h2 className="text-xl font-bold text-gray-800 px-1">2025 NRP 核心理论</h2>
       {MAJOR_CONCEPTS.map((concept) => (
-        <div key={concept.id} className="ios-card overflow-hidden">
-          <button onClick={() => setSelected(selected === concept.id ? null : concept.id)} className="w-full flex items-center justify-between p-4 bg-white hover:bg-gray-50">
-            <span className="font-bold text-gray-800">{concept.title}</span>
-            <ChevronRight size={18} className={`text-gray-400 transition-transform ${selected === concept.id ? 'rotate-90' : ''}`} />
+        <div key={concept.id} className="ios-card overflow-hidden transition-all duration-300">
+          <button 
+            onClick={() => setSelected(selected === concept.id ? null : concept.id)} 
+            className={`w-full flex items-center justify-between p-4 transition-colors ${selected === concept.id ? 'bg-blue-600 text-white' : 'bg-white text-gray-800 hover:bg-gray-50'}`}
+          >
+            <span className="font-bold">{concept.title}</span>
+            <ChevronRight size={18} className={`transition-transform duration-300 ${selected === concept.id ? 'rotate-90 text-white' : 'text-gray-400'}`} />
           </button>
-          {selected === concept.id && <div className="p-4 bg-blue-50/30 border-t border-blue-50 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{concept.content}</div>}
+          {selected === concept.id && (
+            <div className="p-5 bg-white border-t border-blue-100 text-[13px] text-gray-700 animate-in slide-in-from-top-2 duration-300">
+              <FormattedText text={concept.content} />
+            </div>
+          )}
         </div>
       ))}
     </div>
