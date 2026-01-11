@@ -92,7 +92,10 @@ const App: React.FC = () => {
     <div className="max-w-md mx-auto min-h-screen pb-24 flex flex-col">
       <header className="sticky top-0 z-50 bg-white/80 ios-blur border-b border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl font-bold text-gray-900 tracking-tight">新生儿复苏-LZRYEK</h1>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight">新生儿复苏-LZRYEK</h1>
+            <p className="text-[9px] text-gray-400 font-medium">Build v1.0.3-Release</p>
+          </div>
           <span className="text-[10px] font-bold px-2 py-1 bg-blue-100 text-blue-700 rounded-full">2025 NRP 指南</span>
         </div>
         
@@ -100,11 +103,11 @@ const App: React.FC = () => {
           <div className="grid grid-cols-2 gap-4 mb-3">
             <div>
               <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">体重 (kg)</label>
-              <input type="number" step="0.1" value={weight} onChange={(e) => setWeight(Number(e.target.value))} className="w-full text-lg font-semibold bg-gray-50 border-none rounded-md px-2 py-1" />
+              <input type="number" step="0.1" value={weight} onChange={(e) => setWeight(Number(e.target.value))} className="w-full text-lg font-semibold bg-gray-50 border-none rounded-md px-2 py-1 outline-none" />
             </div>
             <div>
               <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">孕周 (周)</label>
-              <input type="number" value={ga} onChange={(e) => setGa(Number(e.target.value))} className="w-full text-lg font-semibold bg-gray-50 border-none rounded-md px-2 py-1" />
+              <input type="number" value={ga} onChange={(e) => setGa(Number(e.target.value))} className="w-full text-lg font-semibold bg-gray-50 border-none rounded-md px-2 py-1 outline-none" />
             </div>
           </div>
           
@@ -457,7 +460,7 @@ const GuidanceView: React.FC<{
           <span className="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md uppercase tracking-wider">当前步骤</span>
           <h2 className="text-2xl font-black text-gray-900 mt-1">{content.title}</h2>
         </div>
-        <p className="text-gray-600 text-sm leading-relaxed mb-6">{content.desc}</p>
+        <p className="text-gray-600 text-sm leading-relaxed mb-6 font-medium">{content.desc}</p>
         
         <div className="flex flex-col gap-3">
           {content.actions.map((act, i) => (
@@ -466,7 +469,8 @@ const GuidanceView: React.FC<{
               onClick={() => { if(act.onAction) act.onAction(); setNode(act.next); }}
               className={`w-full py-4 px-6 rounded-2xl flex items-center justify-between font-bold transition-all active:scale-[0.98] ${act.primary ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-gray-100 text-gray-700'}`}
             >
-              {act.label} <ChevronRight size={18}/>
+              <span className="text-[14px]">{act.label}</span>
+              <ChevronRight size={18}/>
             </button>
           ))}
         </div>
@@ -482,7 +486,7 @@ const GuidanceView: React.FC<{
           {content.details.map((detail, idx) => (
             <div key={idx} className="flex gap-3">
               <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
-              <p className="text-[13px] text-gray-600 leading-relaxed font-medium">
+              <p className="text-[13px] text-gray-600 leading-relaxed font-bold">
                 {detail}
               </p>
             </div>
@@ -533,7 +537,7 @@ const GoalsView: React.FC = () => (
       {/* 整合的总结说明 */}
       <div className="mb-4 p-3 bg-blue-50 rounded-xl border border-blue-100 flex items-start gap-2">
         <Info size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
-        <p className="text-[11px] text-blue-700 leading-relaxed font-medium">
+        <p className="text-[11px] text-blue-700 leading-relaxed font-bold">
           <strong>指南核心：</strong>SpO2 曲线仅基于<strong>生后时间</strong>，不因是否插管而改变。复苏稳定后（通常生后 &gt;10min）应转为<strong>维持稳定范围 ({STABLE_SPO2_TARGET})</strong>，严防高氧损伤。
         </p>
       </div>
@@ -541,7 +545,7 @@ const GoalsView: React.FC = () => (
       <div className="space-y-2">
         {SPO2_TARGETS.map((t, idx) => (
           <div key={idx} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
-            <span className="text-gray-700 text-xs font-medium">{t.time}</span>
+            <span className="text-gray-700 text-xs font-bold">{t.time}</span>
             <span className="bg-blue-50 text-blue-700 px-3 py-0.5 rounded-full font-bold text-xs">{t.target}</span>
           </div>
         ))}
@@ -549,12 +553,12 @@ const GoalsView: React.FC = () => (
     </div>
 
     {/* 插管/稳定期固定目标 */}
-    <div className="ios-card p-5 border-l-4 border-green-500">
+    <div className="ios-card p-5 border-l-4 border-green-500 bg-green-50/20">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2"><Zap size={16} className="text-green-600" /> 气管插管后/复苏稳定期目标</h3>
         <span className="text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded font-bold">稳定期</span>
       </div>
-      <div className="flex items-center justify-between p-4 bg-green-50 rounded-2xl border border-green-100">
+      <div className="flex items-center justify-between p-4 bg-white/80 rounded-xl border border-green-100">
         <div>
           <p className="text-[10px] text-green-600 font-bold uppercase mb-1">推荐维持范围</p>
           <p className="text-3xl font-black text-green-900">{STABLE_SPO2_TARGET}</p>
@@ -562,7 +566,7 @@ const GoalsView: React.FC = () => (
         <CheckCircle2 size={32} className="text-green-500 opacity-50" />
       </div>
       <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-        <p className="text-[10px] text-blue-700 leading-relaxed font-medium">
+        <p className="text-[10px] text-blue-700 leading-relaxed font-bold">
           <strong>临床提示：</strong>在自主循环恢复 (ROSC) 后，应尽快根据 SpO2 滴定给氧。将 SpO2 维持在此范围可有效降低氧化应激和肺损伤风险。
         </p>
       </div>
@@ -606,8 +610,8 @@ const ChecklistView: React.FC = () => (
       </div>
       <div className="p-2">
         {CHECKLIST_ITEMS.pre.map((item, idx) => (
-          <div key={idx} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors border-b border-gray-50 last:border-0">
-            <input type="checkbox" className="mt-1 w-5 h-5 accent-blue-600 rounded-md" />
+          <div key={idx} className="flex items-start gap-3 p-3 hover:bg-gray-50 border-b border-gray-50 last:border-0 cursor-pointer">
+            <input type="checkbox" className="mt-1 w-5 h-5 accent-blue-600 rounded-md border-gray-300" />
             <FormattedChecklistItem text={item} />
           </div>
         ))}
@@ -620,8 +624,8 @@ const ChecklistView: React.FC = () => (
       </div>
       <div className="p-2">
         {CHECKLIST_ITEMS.post.map((item, idx) => (
-          <div key={idx} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors border-b border-gray-50 last:border-0">
-            <input type="checkbox" className="mt-1 w-5 h-5 accent-purple-600 rounded-md" />
+          <div key={idx} className="flex items-start gap-3 p-3 hover:bg-gray-50 border-b border-gray-50 last:border-0 cursor-pointer">
+            <input type="checkbox" className="mt-1 w-5 h-5 accent-purple-600 rounded-md border-gray-300" />
             <FormattedChecklistItem text={item} />
           </div>
         ))}
@@ -658,11 +662,11 @@ const TheoryView: React.FC = () => {
             onClick={() => setSelected(selected === concept.id ? null : concept.id)} 
             className={`w-full flex items-center justify-between p-4 transition-colors ${selected === concept.id ? 'bg-blue-600 text-white' : 'bg-white text-gray-800 hover:bg-gray-50'}`}
           >
-            <span className="font-bold">{concept.title}</span>
+            <span className="font-bold text-[14px]">{concept.title}</span>
             <ChevronRight size={18} className={`transition-transform duration-300 ${selected === concept.id ? 'rotate-90 text-white' : 'text-gray-400'}`} />
           </button>
           {selected === concept.id && (
-            <div className="p-5 bg-white border-t border-blue-100 text-[13px] text-gray-700 animate-in slide-in-from-top-2 duration-300">
+            <div className="p-5 bg-white border-t border-blue-100 text-[13px] text-gray-700 animate-in slide-in-from-top-2 duration-300 font-bold">
               <FormattedText text={concept.content} />
             </div>
           )}
