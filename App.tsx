@@ -534,7 +534,7 @@ const GoalsView: React.FC = () => (
       <div className="mb-4 p-3 bg-blue-50 rounded-xl border border-blue-100 flex items-start gap-2">
         <Info size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
         <p className="text-[11px] text-blue-700 leading-relaxed font-medium">
-          <strong>指南核心：</strong>SpO2 曲线仅基于<strong>生后时间</strong>，不因是否插管而改变。复苏稳定后（通常生后 >10min）应转为<strong>维持稳定范围 ({STABLE_SPO2_TARGET})</strong>，严防高氧损伤。
+          <strong>指南核心：</strong>SpO2 曲线仅基于<strong>生后时间</strong>，不因是否插管而改变。复苏稳定后（通常生后 &gt;10min）应转为<strong>维持稳定范围 ({STABLE_SPO2_TARGET})</strong>，严防高氧损伤。
         </p>
       </div>
 
