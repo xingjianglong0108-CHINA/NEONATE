@@ -2,6 +2,7 @@
 export enum AppSection {
   GUIDANCE = 'GUIDANCE',
   GOALS = 'GOALS',
+  CALCULATOR = 'CALCULATOR',
   CHECKLIST = 'CHECKLIST',
   THEORY = 'THEORY'
 }
